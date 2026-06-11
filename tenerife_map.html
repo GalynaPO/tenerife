@@ -254,8 +254,10 @@ const places = [
     desc: "Your base for the week. Tacoronte, northern Tenerife." },
 
   // ── JUN 12 ARRIVAL ──────────────────────────────────────────────────────
-  { name: "Tenerife South Airport (TFS)", lat: 28.0445, lng: -16.5725, day: 0, type: "activity",
+  { name: "Tenerife South Airport (TFS) – Arrival", lat: 28.0445, lng: -16.5725, day: 0, type: "activity",
     desc: "✈️ Arrival morning. Pick up rental car here, then drive ~1h north to apartment." },
+  { name: "Tenerife South Airport (TFS) – Departure", lat: 28.0445, lng: -16.5725, day: 7, type: "activity",
+    desc: "✈️ Return car & fly home. Allow 2h before departure." },
   { name: "Tacoronte Town Centre", lat: 28.4748, lng: -16.3940, day: 0, type: "town",
     desc: "Quick grocery stop near the apartment. Settle in, rest after the flight." },
 
@@ -514,6 +516,7 @@ function applyFilter(day) {
     const color = DAY_META[day]?.color || '#5cb8ff';
     drawRoute(dayPlaces, color);
   }
+
 }
 
 document.querySelectorAll('.filter-btn').forEach(btn => {
