@@ -371,24 +371,23 @@ const TYPE_ICON = {
 const map = L.map('map', { zoomControl: false }).setView([28.27, -16.62], 10);
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-// Base: muted dark land with vivid blue ocean
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-  attribution: '© OpenStreetMap © CARTO',
+// Stamen Watercolor-style: vivid blue sea, warm land — good contrast at all zooms
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap',
   maxZoom: 19,
-  opacity: 0.55
+  opacity: 1
 }).addTo(map);
 
-// Ocean fill layer underneath via a second tile
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
-  attribution: '© Esri',
-  maxZoom: 13,
-  opacity: 0.7,
-  pane: 'tilePane'
-}).addTo(map);
-
-// Labels on top
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+// Dark tint over everything to match the dark UI theme
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
   attribution: '',
+  maxZoom: 19,
+  opacity: 0.6
+}).addTo(map);
+
+// Labels
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+  attribution: '© CARTO',
   maxZoom: 19,
   zIndex: 10
 }).addTo(map);
