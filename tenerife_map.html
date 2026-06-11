@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tenerife Trip 12–19 June 2026</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1923; color: #e8edf2; height: 100vh; display: flex; flex-direction: column; }
+
+  header {
+    background: linear-gradient(135deg, #1a2940 0%, #0d1f33 100%);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 16px;
+    border-bottom: 1px solid #2a3f58;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.2rem; font-weight: 700; color: #5cb8ff; white-space: nowrap; }
+  header .subtitle { font-size: 0.75rem; color: #7a9bb5; }
+
+  .filters {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto;
+  }
+  .filter-btn {
+    padding: 5px 12px; border: 1.5px solid #2a4a6a; border-radius: 20px;
+    background: transparent; color: #a0c4e0; cursor: pointer;
+    font-size: 0.72rem; font-weight: 600; transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .filter-btn:hover { border-color: #5cb8ff; color: #5cb8ff; }
+  .filter-btn.active { background: #1a5fa8; border-color: #5cb8ff; color: #fff; }
+  .filter-btn.day-home { border-color: #e07b54; }
+  .filter-btn.day-home.active { background: #7a3a20; border-color: #e07b54; }
+
+  .day-colors {
+    --d1: #5cb8ff; --d2: #4dd9ac; --d3: #f4c430; --d4: #ff7eb3;
+    --d5: #a78bfa; --d6: #fb923c; --d7: #34d399; --dh: #e07b54;
+  }
+
+  #map { flex: 1; }
+
+  /* Sidebar — hidden by default, shown via toggle button */
+  .sidebar {
+    position: absolute; right: 10px; top: 80px; width: 280px;
+    background: rgba(13,25,45,0.95); border: 1px solid #2a3f58;
+    border-radius: 10px; padding: 14px; z-index: 1000;
+    max-height: calc(100vh - 100px); overflow-y: auto;
+    backdrop-filter: blur(8px);
+    display: none;
+  }
+  .sidebar.open { display: block; }
+  .sidebar h2 { font-size: 0.85rem; color: #5cb8ff; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Floating map panel buttons (desktop/tablet) */
+  .map-btn {
+    position: absolute; z-index: 1001;
+    padding: 7px 13px; border: 1.5px solid #2a4a6a; border-radius: 20px;
+    background: rgba(13,25,45,0.92); color: #a0c4e0; cursor: pointer;
+    font-size: 0.72rem; font-weight: 600;
+    backdrop-filter: blur(6px);
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .map-btn:hover { border-color: #5cb8ff; color: #5cb8ff; }
+  .map-btn.active { background: #1a5fa8; border-color: #5cb8ff; color: #fff; }
+  #btn-itinerary { right: 10px; top: 86px; }
+  .day-block { margin-bottom: 8px; border: 1px solid #1e3550; border-radius: 7px; overflow: hidden; }
+  .day-block h3 {
+    font-size: 0.75rem; font-weight: 700; padding: 7px 10px;
+    display: flex; align-items: center; gap: 6px;
+    cursor: pointer; user-select: none;
+    background: #0d1f33;
+    transition: background 0.15s;
+  }
+  .day-block h3:hover { background: #132a45; }
+  .day-block h3 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .day-block h3 .chevron {
+    margin-left: auto; font-size: 0.65rem; opacity: 0.5;
+    transition: transform 0.2s;
+  }
+  .day-block.collapsed h3 .chevron { transform: rotate(-90deg); }
+  .day-block-body { padding: 4px 0 6px 0; }
+  .day-block.collapsed .day-block-body { display: none; }
+  .stop-item { font-size: 0.7rem; color: #94b3cc; padding: 3px 10px 3px 18px; border-left: 2px solid #1e3550; line-height: 1.4; }
+  .stop-item:hover { color: #5cb8ff; cursor: pointer; }
+
+  .legend-row { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; font-size: 0.7rem; color: #94b3cc; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .legend-block { padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #1e3550; }
+
+  /* Custom popup */
+  .leaflet-popup-content-wrapper {
+    background: #0d1f33; border: 1px solid #2a4a6a; color: #e8edf2;
+    border-radius: 8px;
+  }
+  .leaflet-popup-tip { background: #0d1f33; }
+  .leaflet-popup-content { font-size: 0.78rem; line-height: 1.5; }
+  .popup-title { font-weight: 700; font-size: 0.88rem; margin-bottom: 4px; }
+  .popup-day { font-size: 0.7rem; opacity: 0.7; margin-bottom: 4px; }
+  .popup-type { font-size: 0.68rem; background: #1a3a5a; padding: 2px 6px; border-radius: 10px; display: inline-block; }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: #0d1f33; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #2a4a6a; border-radius: 2px; }
+
+  .itinerary-toggle {
+    display: none;
+    padding: 5px 12px; border: 1.5px solid #2a4a6a; border-radius: 20px;
+    background: transparent; color: #a0c4e0; cursor: pointer;
+    font-size: 0.72rem; font-weight: 600; transition: all 0.2s;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .itinerary-toggle:hover { border-color: #5cb8ff; color: #5cb8ff; }
+  .itinerary-toggle.open { background: #1a5fa8; border-color: #5cb8ff; color: #fff; }
+
+  /* Mobile drawer that slides up from bottom */
+  .mobile-drawer {
+    display: none;
+  }
+
+  @media (max-width: 600px) {
+    /* sidebar already hidden globally; use bottom drawer instead */
+    .sidebar.open { display: none; }
+    #btn-itinerary, #btn-legend { display: none; }
+    .itinerary-toggle { display: block; }
+
+    .mobile-drawer {
+      display: block;
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: rgba(13,25,45,0.98);
+      border-top: 1px solid #2a3f58;
+      border-radius: 14px 14px 0 0;
+      z-index: 2000;
+      max-height: 70vh;
+      overflow-y: auto;
+      padding: 0 14px 20px;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+    .mobile-drawer.open {
+      transform: translateY(0);
+    }
+    .mobile-drawer-handle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0 10px;
+      position: sticky; top: 0;
+      background: rgba(13,25,45,0.98);
+      border-bottom: 1px solid #1e3550;
+      margin-bottom: 10px;
+    }
+    .mobile-drawer-handle h2 {
+      font-size: 0.85rem; color: #5cb8ff;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .mobile-drawer-close {
+      background: none; border: none; color: #7a9bb5;
+      font-size: 1.2rem; cursor: pointer; padding: 0 4px; line-height: 1;
+    }
+    .mobile-drawer-close:hover { color: #fff; }
+    /* pill to show drawer is draggable */
+    .mobile-drawer::before {
+      content: '';
+      display: block;
+      width: 36px; height: 4px;
+      background: #2a4a6a; border-radius: 2px;
+      margin: 10px auto 0;
+    }
+    .legend { display: none; }
+  }
+</style>
+</head>
+<body class="day-colors">
+
+<header>
+  <div>
+    <h1>🌴 Tenerife · June 12–19, 2026</h1>
+    <div class="subtitle">Interactive trip map · 8 days · 40+ places</div>
+  </div>
+  <button class="itinerary-toggle" id="itinerary-toggle-btn">📍 Itinerary</button>
+  <div class="filters">
+    <button class="filter-btn active" data-day="all">All days</button>
+    <button class="filter-btn day-home" data-day="0">Jun 12 · ✈️ TFS → Apartment</button>
+    <button class="filter-btn" data-day="1" style="--c:var(--d1)">Jun 13 · Day 1</button>
+    <button class="filter-btn" data-day="2" style="--c:var(--d2)">Jun 14 · Day 2</button>
+    <button class="filter-btn" data-day="3" style="--c:var(--d3)">Jun 15 · Day 3</button>
+    <button class="filter-btn" data-day="4" style="--c:var(--d4)">Jun 16 · Day 4</button>
+    <button class="filter-btn" data-day="5" style="--c:var(--d5)">Jun 17 · Day 5</button>
+    <button class="filter-btn" data-day="6" style="--c:var(--d6)">Jun 18 · Day 6</button>
+    <button class="filter-btn" data-day="7" style="--c:var(--d7)">Jun 19 · Departure</button>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<!-- Floating toggle button on map -->
+<button class="map-btn" id="btn-itinerary">📍 Itinerary</button>
+
+<div class="sidebar scrollbar-thin" id="sidebar">
+  <h2>📍 Itinerary</h2>
+  <div class="legend-block">
+    <div class="legend-row"><div class="legend-dot" style="background:#e07b54"></div> Jun 12 – ✈️ TFS → Apartment</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#5cb8ff"></div> Jun 13 – North & Teide</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#4dd9ac"></div> Jun 14 – East & South</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#f4c430"></div> Jun 15 – Teide NP</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#ff7eb3"></div> Jun 16 – South Coast</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#a78bfa"></div> Jun 17 – West Coast</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#fb923c"></div> Jun 18 – La Laguna & Anaga</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#34d399"></div> Jun 19 – Departure</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#e0c97b; border:2px solid #b8970a"></div> 🏠 Apartment</div>
+  </div>
+  <div id="sidebar-content"></div>
+</div>
+
+<!-- Mobile bottom drawer -->
+<div class="mobile-drawer scrollbar-thin" id="mobile-drawer">
+  <div class="mobile-drawer-handle">
+    <h2>📍 Itinerary</h2>
+    <button class="mobile-drawer-close" id="mobile-drawer-close">✕</button>
+  </div>
+  <div class="legend-block">
+    <div class="legend-row"><div class="legend-dot" style="background:#e07b54"></div> Jun 12 – ✈️ TFS → Apartment</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#5cb8ff"></div> Jun 13 – North & Teide</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#4dd9ac"></div> Jun 14 – East & South</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#f4c430"></div> Jun 15 – Teide NP</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#ff7eb3"></div> Jun 16 – South Coast</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#a78bfa"></div> Jun 17 – West Coast</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#fb923c"></div> Jun 18 – La Laguna & Anaga</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#34d399"></div> Jun 19 – Departure</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#e0c97b; border:2px solid #b8970a"></div> 🏠 Apartment</div>
+  </div>
+  <div id="mobile-sidebar-content"></div>
+</div>
+
+<div class="legend" style="display:none">
+  <div class="legend-row"><div class="legend-dot" style="background:#e07b54"></div> Jun 12 – ✈️ TFS → Apartment</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#5cb8ff"></div> Jun 13 – North & Teide</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#4dd9ac"></div> Jun 14 – East Coast</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#f4c430"></div> Jun 15 – Teide NP</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#ff7eb3"></div> Jun 16 – South</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#a78bfa"></div> Jun 17 – West Coast</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#fb923c"></div> Jun 18 – La Laguna & Anaga</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#34d399"></div> Jun 19 – Departure</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#e0c97b; border:2px solid #b8970a"></div> 🏠 Apartment</div>
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+// day: 0=arrival/Jun12, 1-6=full days, 7=departure day Jun19
+// type: beach | nature | culture | town | activity | viewpoint | food | home
+const places = [
+  // HOME
+  { name: "Casa con Jardín (Apartment)", lat: 28.4764, lng: -16.3934, day: 0, type: "home",
+    desc: "Your base for the week. Tacoronte, northern Tenerife." },
+
+  // ── JUN 12 ARRIVAL ──────────────────────────────────────────────────────
+  { name: "Tenerife South Airport (TFS)", lat: 28.0445, lng: -16.5725, day: 0, type: "activity",
+    desc: "✈️ Arrival morning. Pick up rental car here, then drive ~1h north to apartment." },
+  { name: "Tacoronte Town Centre", lat: 28.4748, lng: -16.3940, day: 0, type: "town",
+    desc: "Quick grocery stop near the apartment. Settle in, rest after the flight." },
+
+  // ── JUN 13 – NORTH: Teide + La Laguna ──────────────────────────────────
+  { name: "Centro Histórico de San Cristóbal de La Laguna", lat: 28.4874, lng: -16.3139, day: 1, type: "culture",
+    desc: "UNESCO World Heritage city. Baroque architecture, colourful streets." },
+  { name: "Pico del Teide (Teide Cable Car)", lat: 28.2724, lng: -16.6425, day: 1, type: "nature",
+    desc: "Spain's highest peak 3,715m. Book cable car in advance!" },
+  { name: "Parque Rural de Anaga", lat: 28.5509, lng: -16.1811, day: 1, type: "nature",
+    desc: "Ancient laurisilva forest. Dramatic mountain views." },
+  { name: "Las Montañas de Anaga", lat: 28.5600, lng: -16.1600, day: 1, type: "nature",
+    desc: "Rugged peaks of the Anaga massif." },
+
+  // ── JUN 14 – EAST COAST & SOUTH-EAST ───────────────────────────────────
+  { name: "Playa de Los Cristianos", lat: 28.0503, lng: -16.7148, day: 2, type: "beach",
+    desc: "Popular sheltered beach with calm waters, great for a swim." },
+  { name: "Playa de Las Américas", lat: 28.0579, lng: -16.7231, day: 2, type: "beach",
+    desc: "Lively resort beach. Promenade, bars, watersports." },
+  { name: "Playa Del Bolico", lat: 28.0870, lng: -16.6930, day: 2, type: "beach",
+    desc: "Quieter natural beach south of Las Américas." },
+  { name: "Playa de Torviscas", lat: 28.0642, lng: -16.7276, day: 2, type: "beach",
+    desc: "Sandy beach with sunbeds, sheltered bay." },
+  { name: "Playa de La Tejita", lat: 28.0111, lng: -16.5989, day: 2, type: "beach",
+    desc: "Wild naturist-friendly beach near Montaña Roja. Stunning scenery." },
+
+  // ── JUN 15 – TEIDE NATIONAL PARK ───────────────────────────────────────
+  { name: "Teide National Park", lat: 28.2730, lng: -16.6370, day: 3, type: "nature",
+    desc: "UNESCO World Heritage. Volcanic landscape, lava fields, roques." },
+  { name: "Teide Cable Car (Teleférico)", lat: 28.2724, lng: -16.6425, day: 3, type: "activity",
+    desc: "Ride up to 3,555m. Views over all the Canary Islands on clear days." },
+  { name: "Parque Infantil de Playa Jardín", lat: 28.3793, lng: -16.5721, day: 3, type: "nature",
+    desc: "Beautiful black-sand beach with tropical gardens. Puerto de la Cruz." },
+  { name: "Teide Express Cable Car Tour", lat: 28.2730, lng: -16.6370, day: 3, type: "activity",
+    desc: "Guided tour of Teide National Park – Tenerife Grand Tour." },
+
+  // ── JUN 16 – SOUTH COAST ───────────────────────────────────────────────
+  { name: "Playa de San Telmo", lat: 28.0530, lng: -16.7120, day: 4, type: "beach",
+    desc: "Charming black-sand beach in Puerto de la Cruz area." },
+  { name: "Troya Beach", lat: 28.0600, lng: -16.7240, day: 4, type: "beach",
+    desc: "Imported white sand, calm and popular with families." },
+  { name: "Playa de Puerto Colón", lat: 28.0641, lng: -16.7293, day: 4, type: "beach",
+    desc: "Marina beach, water sports & boat trips." },
+  { name: "Playa de El Médano", lat: 28.0444, lng: -16.5333, day: 4, type: "beach",
+    desc: "Windsurf & kitesurf mecca. Long sandy beach, regular competitions." },
+  { name: "Los Gigantes (Cliffs)", lat: 28.2433, lng: -16.8390, day: 4, type: "viewpoint",
+    desc: "Dramatic 600m basalt cliffs. Boat trips through the cliffs." },
+  { name: "Playa de la Arena", lat: 28.2160, lng: -16.8360, day: 4, type: "beach",
+    desc: "Black volcanic sand beach below Los Gigantes. Crystal clear water." },
+  { name: "Playa de Abama", lat: 28.1735, lng: -16.8293, day: 4, type: "beach",
+    desc: "Secluded golden sand cove. One of Tenerife's best-kept secrets." },
+  { name: "Playa El Bollullo", lat: 28.4097, lng: -16.5630, day: 4, type: "beach",
+    desc: "Hidden black-sand beach, wild & beautiful. Short hike to reach it." },
+
+  // ── JUN 17 – WEST COAST ────────────────────────────────────────────────
+  { name: "Masca Village + Masca Gorge Trail", lat: 28.2186, lng: -16.8449, day: 5, type: "nature",
+    desc: "Iconic mountain village. Dramatic gorge hike down to the sea (4–5h)." },
+  { name: "Valle de La Orotava", lat: 28.3903, lng: -16.5228, day: 5, type: "town",
+    desc: "Charming colonial town, one of Tenerife's most beautiful. Mansions, gardens." },
+  { name: "Playa de Las Vistas", lat: 28.0455, lng: -16.6977, day: 5, type: "beach",
+    desc: "Long imported white-sand beach in Los Cristianos. Calm & clean." },
+  { name: "Pirámides de Güímar", lat: 28.3167, lng: -16.4019, day: 5, type: "culture",
+    desc: "Mysterious stepped pyramids. Ethnographic park with Thor Heyerdahl exhibits." },
+  { name: "Playa de Las Américas (sunset)", lat: 28.0579, lng: -16.7231, day: 5, type: "viewpoint",
+    desc: "Great sunset views from the promenade." },
+  { name: "Finca Comentes Aloe Vera", lat: 28.3567, lng: -16.5283, day: 5, type: "activity",
+    desc: "Working aloe vera farm at the foot of Teide. Free tours and shop." },
+
+  // ── JUN 18 – LA LAGUNA, ANAGA, NORTH-EAST ──────────────────────────────
+  { name: "Los Cristianos Harbour", lat: 28.0534, lng: -16.7143, day: 6, type: "town",
+    desc: "Fishing port turned resort. Ferry to La Gomera. Lively evening promenade." },
+  { name: "Playa del Carmen (Los Cristianos)", lat: 28.0510, lng: -16.7127, day: 6, type: "beach",
+    desc: "Town beach of Los Cristianos, sheltered and busy." },
+  { name: "Punto de Teno", lat: 28.3450, lng: -16.9158, day: 6, type: "viewpoint",
+    desc: "Westernmost tip of Tenerife. Lighthouse, dramatic cliffs, clear waters." },
+  { name: "Fountain Las Americas", lat: 28.0594, lng: -16.7227, day: 6, type: "culture",
+    desc: "Iconic illuminated fountain on the Las Américas promenade." },
+  { name: "Basilica de Nuestra Señora de Candelaria", lat: 28.3546, lng: -16.3722, day: 6, type: "culture",
+    desc: "Patron saint of the Canaries. Beautiful basilica on the seafront." },
+  { name: "Jardín Botánico (Botanical Garden)", lat: 28.4035, lng: -16.5356, day: 6, type: "nature",
+    desc: "Founded 1788. Tropical plants from the Americas. Puerto de la Cruz." },
+  { name: "Parque del Drago", lat: 28.4155, lng: -16.5411, day: 6, type: "nature",
+    desc: "Famous dragon tree park in Icod de los Vinos. 1000-year-old tree!" },
+
+  // ── JUN 19 – DEPARTURE ─────────────────────────────────────────────────
+  { name: "Plaza Chico (La Laguna)", lat: 28.4876, lng: -16.3155, day: 7, type: "town",
+    desc: "Beautiful pedestrian square. Cafés, restaurants and local vibe." },
+  { name: "Playa de Benijo", lat: 28.5713, lng: -16.2052, day: 7, type: "beach",
+    desc: "Wild black-sand beach in Anaga. Spectacular views. Easy morning stop." },
+  { name: "Piscinas Naturales El Caletón", lat: 28.3812, lng: -16.5680, day: 7, type: "nature",
+    desc: "Natural volcanic rock pools in Garachico. Free & stunning." },
+  { name: "Tenerife Auditorium (Auditorio de Tenerife)", lat: 28.4587, lng: -16.5504, day: 7, type: "culture",
+    desc: "Iconic Calatrava building by the sea. Worth a photo stop on the way to airport." },
+];
+
+// ─── COLORS ──────────────────────────────────────────────────────────────────
+const DAY_META = {
+  0: { color: "#e07b54", label: "Jun 12 · ✈️ TFS → Apartment" },
+  1: { color: "#5cb8ff", label: "Jun 13 · North & Teide" },
+  2: { color: "#4dd9ac", label: "Jun 14 · East & South" },
+  3: { color: "#f4c430", label: "Jun 15 · Teide NP" },
+  4: { color: "#ff7eb3", label: "Jun 16 · South Coast" },
+  5: { color: "#a78bfa", label: "Jun 17 · West Coast" },
+  6: { color: "#fb923c", label: "Jun 18 · La Laguna" },
+  7: { color: "#34d399", label: "Jun 19 · Departure" },
+};
+
+const TYPE_ICON = {
+  home: "🏠", beach: "🏖️", nature: "🌿", culture: "🏛️",
+  town: "🏘️", activity: "🎯", viewpoint: "👁️", food: "🍴"
+};
+
+// ─── MAP INIT ────────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: false }).setView([28.27, -16.62], 10);
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+// Base: muted dark land with vivid blue ocean
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO',
+  maxZoom: 19,
+  opacity: 0.55
+}).addTo(map);
+
+// Ocean fill layer underneath via a second tile
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+  attribution: '© Esri',
+  maxZoom: 13,
+  opacity: 0.7,
+  pane: 'tilePane'
+}).addTo(map);
+
+// Labels on top
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+  attribution: '',
+  maxZoom: 19,
+  zIndex: 10
+}).addTo(map);
+
+// ─── MARKERS ─────────────────────────────────────────────────────────────────
+function makeIcon(place) {
+  const meta = DAY_META[place.day];
+  const isHome = place.type === "home";
+  const size = isHome ? 34 : 26;
+  const border = isHome ? "3px solid #e0c97b" : "2px solid rgba(255,255,255,0.4)";
+  const bg = isHome ? "#7a4a10" : meta.color;
+  const emoji = TYPE_ICON[place.type] || "📍";
+  const html = `<div style="
+    width:${size}px; height:${size}px; border-radius:50%;
+    background:${bg}; border:${border};
+    display:flex; align-items:center; justify-content:center;
+    font-size:${isHome ? 16 : 13}px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    cursor:pointer;
+  ">${isHome ? '🏠' : emoji}</div>`;
+  return L.divIcon({ html, className: '', iconSize: [size, size], iconAnchor: [size/2, size/2] });
+}
+
+const allMarkers = [];
+
+places.forEach(place => {
+  const marker = L.marker([place.lat, place.lng], { icon: makeIcon(place) });
+  const meta = DAY_META[place.day];
+  marker.bindPopup(`
+    <div class="popup-title">${TYPE_ICON[place.type]} ${place.name}</div>
+    <div class="popup-day" style="color:${meta.color}">● ${meta.label}</div>
+    <div style="margin-bottom:6px; font-size:0.75rem; color:#b0cce0">${place.desc}</div>
+    <span class="popup-type">${place.type}</span>
+  `, { maxWidth: 240 });
+  marker.addTo(map);
+  marker._placeData = place;
+  allMarkers.push(marker);
+});
+
+// ─── FILTER ──────────────────────────────────────────────────────────────────
+let activeDay = 'all';
+
+function applyFilter(day) {
+  activeDay = day;
+  allMarkers.forEach(m => {
+    const d = m._placeData.day;
+    const show = day === 'all' || d == day;
+    if (show) m.addTo(map); else map.removeLayer(m);
+  });
+  // Fit bounds
+  const visible = allMarkers.filter(m => map.hasLayer(m));
+  if (visible.length > 0) {
+    const group = L.featureGroup(visible);
+    map.fitBounds(group.getBounds().pad(0.15));
+  }
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyFilter(btn.dataset.day);
+  });
+});
+
+// ─── SIDEBAR ─────────────────────────────────────────────────────────────────
+function buildDayBlocks(container, onStopClick) {
+  container.innerHTML = '';
+  for (let d = 0; d <= 7; d++) {
+    const dayPlaces = places.filter(p => p.day == d);
+    if (!dayPlaces.length) continue;
+    const meta = DAY_META[d];
+    const block = document.createElement('div');
+    block.className = 'day-block';
+
+    const h3 = document.createElement('h3');
+    h3.innerHTML = `<span class="dot" style="background:${meta.color}"></span>${meta.label}<span class="chevron">▼</span>`;
+    h3.addEventListener('click', () => block.classList.toggle('collapsed'));
+    block.appendChild(h3);
+
+    const body = document.createElement('div');
+    body.className = 'day-block-body';
+    dayPlaces.forEach(p => {
+      const el = document.createElement('div');
+      el.className = 'stop-item';
+      el.textContent = `${TYPE_ICON[p.type]} ${p.name}`;
+      el.addEventListener('click', () => onStopClick(p));
+      body.appendChild(el);
+    });
+    block.appendChild(body);
+    container.appendChild(block);
+  }
+}
+
+function buildSidebar() {
+  const onStop = p => {
+    map.setView([p.lat, p.lng], 14);
+    allMarkers.find(m => m._placeData === p)?.openPopup();
+    // close drawer on mobile tap
+    drawer.classList.remove('open');
+    toggleBtn.classList.remove('open');
+  };
+  buildDayBlocks(document.getElementById('sidebar-content'), onStop);
+  buildDayBlocks(document.getElementById('mobile-sidebar-content'), onStop);
+}
+buildSidebar();
+
+// ─── MOBILE DRAWER TOGGLE ────────────────────────────────────────────────────
+const drawer = document.getElementById('mobile-drawer');
+const toggleBtn = document.getElementById('itinerary-toggle-btn');
+const closeBtn = document.getElementById('mobile-drawer-close');
+
+toggleBtn.addEventListener('click', () => {
+  const open = drawer.classList.toggle('open');
+  toggleBtn.classList.toggle('open', open);
+});
+closeBtn.addEventListener('click', () => {
+  drawer.classList.remove('open');
+  toggleBtn.classList.remove('open');
+});
+
+// ─── DESKTOP/TABLET FLOATING BUTTON TOGGLES ──────────────────────────────────
+const sidebar = document.getElementById('sidebar');
+const btnItinerary = document.getElementById('btn-itinerary');
+
+btnItinerary.addEventListener('click', () => {
+  const open = sidebar.classList.toggle('open');
+  btnItinerary.classList.toggle('active', open);
+});
+</script>
+</body>
+</html>
