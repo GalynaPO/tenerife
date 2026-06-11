@@ -494,7 +494,9 @@ function applyFilter(day) {
   clearRoutes();
   allMarkers.forEach(m => {
     const d = m._placeData.day;
-    const show = day === 'all' || d == day;
+    const isHome = m._placeData.type === 'home';
+    // Show home marker on all days except arrival day (it's already there on day 0)
+    const show = day === 'all' || d == day || (isHome && day !== 'all' && day > 0);
     if (show) m.addTo(map); else map.removeLayer(m);
   });
   // Fit bounds
