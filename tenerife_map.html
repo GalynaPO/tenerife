@@ -505,7 +505,10 @@ function applyFilter(day) {
   }
   // Draw route for specific day
   if (day !== 'all') {
-    const dayPlaces = places.filter(p => p.day == day);
+    const apartment = places.find(p => p.type === 'home');
+    let dayPlaces = places.filter(p => p.day == day);
+    // For full days (1–7), prepend apartment as starting point
+    if (day > 0 && apartment) dayPlaces = [apartment, ...dayPlaces];
     const color = DAY_META[day]?.color || '#5cb8ff';
     drawRoute(dayPlaces, color);
   }
